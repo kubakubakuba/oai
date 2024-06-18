@@ -142,12 +142,17 @@ class ChannelSummaryManager:
 
     async def send_summary_to_channel(self, summary, channel_id):
         summary_channel = self.client.get_channel(self.summary_channel_id)
+        print("Sending summary to channel")
+        print(summary_channel)
+        print("name: " + summary_channel.name)
         channel_name = self.client.get_channel(channel_id).name
         if summary_channel:
             await summary_channel.send(f"\n----- Channel Summary: {channel_name} -----\n{summary}\n----------------------------\n")
-
+        else:
+            print("No summary channel found.")
     def record_message(self, channel, result):
         self.channel_message_summaries[channel.id] = result
+        print(f"Channel summary for {channel.id}: {result}")
         asyncio.run_coroutine_threadsafe(self.send_summary_to_channel(result, channel.id), self.client.loop)
 
     async def take_snapshot(self, channel):
@@ -161,7 +166,7 @@ class ChannelSummaryManager:
         
         history_list.reverse()
         summary = '\n'.join(history_list)
-        summary = summary + "\nsupervizor: Summarize the conversation above, what is it about? What is your opininon about the conversation? How could you help them? Write a short summary about these people: " + people_in_chat + ". It is crutial to write about each and every one of them.\n"
+        summary = summary + "\nsupervizor: Create a summary of the conversation above, what is it about? What is your opininon about the conversation? How could you help them? Write a short summary about these people: " + people_in_chat + ". It is crutial to write about each and every one of them.\n"
 
         self.llm.add_request(summary, curry(self.record_message, channel))
 
