@@ -83,7 +83,7 @@ class LLMResponder:
                 retries -= 1
                 output = "My AI model is not responding, try again in a moment 🔥🐳"
                 continue
-        print("LLM: " + output)
+        #print("LLM: " + output)
         return output
 
     def process_requests(self):
@@ -124,6 +124,9 @@ class ChannelSummaryManager:
 
     async def update_channel_summary(self, channel):
         channel_id = channel.id
+        for channel in zip(self.channel_message_summaries, self.channel_message_counts.keys()):
+            self.print_summary(channel[0], channel[1])
+
         if channel_id not in self.channel_message_counts:
             self.channel_message_counts[channel_id] = 0
 
@@ -134,23 +137,34 @@ class ChannelSummaryManager:
     def get_channel_summary(self, channel):
         channel_id = channel.id
         if channel_id in self.channel_message_summaries:
-            return self.channel_message_summaries[channel_id]
+            summary = self.channel_message_summaries[channel_id]
+            return summary
         else:
+            print("No summary available for this channel.")
             return False
 
+    def print_summary(self, summary, channel_name):
+        print(f"\n----- Channel Summary: {channel_name} -----\n")
+        print(summary)
+        print("\n----------------------------\n")
+
     def record_message(self, channel, result):
-        print(f"Channel {channel.id} received message: {result}")
+        #print(f"Channel {channel.id} received message: {result}")
         self.channel_message_summaries[channel.id] = result
 
     async def take_snapshot(self, channel):
         channel_history = [msg async for msg in channel.history(limit=self.snapshot_limit)]
         history_list = [f"{msg.author.name}: {remove_id(msg.content)[:1000]}" for msg in channel_history]
+        people_in_chat = set()
+        for msg in channel_history:
+            people_in_chat.add(msg.author.name)
+        people_in_chat = ', '.join(people_in_chat)
         #filter messages with only whitespaces and empty messages
         history_list = [msg for msg in history_list if msg.strip()]
         
         history_list.reverse()
         summary = '\n'.join(history_list)
-        summary = summary + "\nsupervizor: Summarize the conversation above, what is it about? What are you could tell to the relevant persons? What is your opininon about the conversation? How could you help them? Write down the people in the chat and create a short summary about them."
+        summary = summary + "\nsupervizor: Summarize the conversation above, what is it about? What is your opininon about the conversation? How could you help them? Write a short summary about these people: " + people_in_chat + ". It is crutial to write about each and every one of them.\n"
 
         #print(f"Snapshot for channel {channel.id}: {summary}")
         self.llm.add_request(summary, curry(self.record_message, channel))
@@ -172,8 +186,8 @@ async def on_message(message):
         return
     
     if client.user.mentioned_in(message):
-        print(message.author.name + ": " + remove_id(message.content))
-        print(client.user.mentioned_in(message))
+        #print(message.author.name + ": " + remove_id(message.content))
+        #print(client.user.mentioned_in(message))
         
         history_list = []
         channel_history = [user async for user in message.channel.history(limit=bot["history_lines"] + 1)]
@@ -190,7 +204,7 @@ async def on_message(message):
         if summary_generated:
             summary_whole = start_summary + summary_generated + end_summary
 
-        print("Summary: " + summary_whole)
+        #print("Summary: " + summary_whole)
 
         prompt = format_prompt(bot["question_prompt"], message.author.name, remove_id(message.content), summary_whole+history_text)
         avg_time = responder.avg_response_time / 60  # Convert to minutes
