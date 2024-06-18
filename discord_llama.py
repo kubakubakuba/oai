@@ -129,9 +129,6 @@ class ChannelSummaryManager:
         if self.channel_message_counts[channel_id] % self.snapshot_interval == 0:
             await self.take_snapshot(channel)
 
-        for channel in self.channel_message_summaries.keys():
-            await self.send_summary_to_channel(self.channel_message_summaries[channel], channel)
-
         self.channel_message_counts[channel_id] += 1
 
     def get_channel_summary(self, channel):
