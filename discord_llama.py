@@ -45,8 +45,8 @@ def format_prompt(prompt, user, question, history):
 class LLMResponder:
     def __init__(self, model, bot):
         self.model = model
-        print(model)
-        print(bot)
+        #print(model)
+        #print(bot)
         self.bot = bot
         self.request_queue = queue.Queue()
         self.worker_thread = threading.Thread(target=self.process_requests)
@@ -57,9 +57,7 @@ class LLMResponder:
 
     def llm_response(self, question):
         formatted_prompt = self.model["prompt_format"].replace("{system}", self.bot["identity"])
-        print("removedid: " + remove_id(question))
         formatted_prompt = formatted_prompt.replace("{prompt}", remove_id(question))
-        print("Prompt: " + formatted_prompt)
         api_data = {
             "prompt": formatted_prompt,
             "n_predict": self.bot["tokens"],
@@ -112,10 +110,11 @@ class DiscordLLMResponder(LLMResponder):
 
         self.add_request(prompt, callback)
 
-
 class ChannelSummaryManager:
-    def __init__(self, snapshot_interval, llm, snapshot_limit=1000):
+    def __init__(self, snapshot_interval, llm, client, summary_channel_id, snapshot_limit=1000):
         self.llm = llm
+        self.client = client
+        self.summary_channel_id = summary_channel_id
         self.channel_message_counts = {}
         self.channel_message_summaries = {}
 
@@ -124,16 +123,17 @@ class ChannelSummaryManager:
 
     async def update_channel_summary(self, channel):
         channel_id = channel.id
-        for channel in zip(self.channel_message_summaries, self.channel_message_counts.keys()):
-            self.print_summary(channel[0], channel[1])
-
         if channel_id not in self.channel_message_counts:
             self.channel_message_counts[channel_id] = 0
 
         if self.channel_message_counts[channel_id] % self.snapshot_interval == 0:
             await self.take_snapshot(channel)
 
+        for channel in self.channel_message_summaries.keys():
+            await self.send_summary_to_channel(self.channel_message_summaries[channel], channel)
+
         self.channel_message_counts[channel_id] += 1
+
     def get_channel_summary(self, channel):
         channel_id = channel.id
         if channel_id in self.channel_message_summaries:
@@ -143,14 +143,15 @@ class ChannelSummaryManager:
             print("No summary available for this channel.")
             return False
 
-    def print_summary(self, summary, channel_name):
-        print(f"\n----- Channel Summary: {channel_name} -----\n")
-        print(summary)
-        print("\n----------------------------\n")
+    async def send_summary_to_channel(self, summary, channel_id):
+        summary_channel = self.client.get_channel(self.summary_channel_id)
+        channel_name = self.client.get_channel(channel_id).name
+        if summary_channel:
+            await summary_channel.send(f"\n----- Channel Summary: {channel_name} -----\n{summary}\n----------------------------\n")
 
     def record_message(self, channel, result):
-        #print(f"Channel {channel.id} received message: {result}")
         self.channel_message_summaries[channel.id] = result
+        asyncio.run_coroutine_threadsafe(self.send_summary_to_channel(result, channel.id), self.client.loop)
 
     async def take_snapshot(self, channel):
         channel_history = [msg async for msg in channel.history(limit=self.snapshot_limit)]
@@ -159,20 +160,19 @@ class ChannelSummaryManager:
         for msg in channel_history:
             people_in_chat.add(msg.author.name)
         people_in_chat = ', '.join(people_in_chat)
-        #filter messages with only whitespaces and empty messages
         history_list = [msg for msg in history_list if msg.strip()]
         
         history_list.reverse()
         summary = '\n'.join(history_list)
         summary = summary + "\nsupervizor: Summarize the conversation above, what is it about? What is your opininon about the conversation? How could you help them? Write a short summary about these people: " + people_in_chat + ". It is crutial to write about each and every one of them.\n"
 
-        #print(f"Snapshot for channel {channel.id}: {summary}")
         self.llm.add_request(summary, curry(self.record_message, channel))
-        # Trigger your desired action here
-        # For example, save the summary to a file or send it to an API
-summarizer = LLMResponder(model, bot)
 
-summary_manager = ChannelSummaryManager(10, summarizer)
+
+summarizer = LLMResponder(model, bot)
+summary_channel_id = 1252659790799306824  # Replace with your actual summary channel ID
+summary_manager = ChannelSummaryManager(10, summarizer, client, summary_channel_id)
+
 responder = DiscordLLMResponder(model, bot, client)
 
 @client.event
