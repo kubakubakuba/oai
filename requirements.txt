@@ -3,3 +3,5 @@
 
 # Discord API
 discord.py
+discord
+requests
