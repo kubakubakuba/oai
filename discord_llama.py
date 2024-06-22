@@ -147,6 +147,7 @@ class ChannelSummaryManager:
         print("name: " + summary_channel.name)
         channel_name = self.client.get_channel(channel_id).name
         if summary_channel:
+            print(f"\n----- Channel Summary: {channel_name} -----\n{summary}\n----------------------------\n")
             await summary_channel.send(f"\n----- Channel Summary: {channel_name} -----\n{summary}\n----------------------------\n")
         else:
             print("No summary channel found.")
@@ -163,7 +164,7 @@ class ChannelSummaryManager:
             people_in_chat.add(msg.author.name)
         people_in_chat = ', '.join(people_in_chat)
         history_list = [msg for msg in history_list if msg.strip()]
-        
+        print("Taking snapshot of channel history for channel: " + channel.name)
         history_list.reverse()
         summary = '\n'.join(history_list)
         summary = summary + "\nsupervizor: Create a summary of the conversation above, what is it about? What is your opininon about the conversation? How could you help them? Write a short summary about these people: " + people_in_chat + ". It is crutial to write about each and every one of them.\n"
@@ -173,7 +174,7 @@ class ChannelSummaryManager:
 
 summarizer = LLMResponder(model, bot)
 summary_channel_id = 1252659790799306824  # Replace with your actual summary channel ID
-summary_manager = ChannelSummaryManager(10, summarizer, client, summary_channel_id)
+summary_manager = ChannelSummaryManager(10, summarizer, client, summary_channel_id, 100)
 
 responder = DiscordLLMResponder(model, bot, client)
 
