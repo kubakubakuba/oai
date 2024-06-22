@@ -171,12 +171,11 @@ class ChannelSummaryManager:
 
         self.llm.add_request(summary, curry(self.record_message, channel))
 
-
-summarizer = LLMResponder(model, bot)
-summary_channel_id = 1252659790799306824  # Replace with your actual summary channel ID
-summary_manager = ChannelSummaryManager(10, summarizer, client, summary_channel_id, 100)
-
 responder = DiscordLLMResponder(model, bot, client)
+
+summary_channel_id = 1252659790799306824  # Replace with your actual summary channel ID
+summary_manager = ChannelSummaryManager(10, responder, client, summary_channel_id, 100)
+
 
 @client.event
 async def on_ready():
