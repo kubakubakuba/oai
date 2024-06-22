@@ -109,7 +109,7 @@ class DiscordLLMResponder(LLMResponder):
             asyncio.run_coroutine_threadsafe(msg_ref.edit(content=response[:2000]), self.client.loop)
 
         self.add_request(prompt, callback)
-
+        
 class ChannelSummaryManager:
     def __init__(self, snapshot_interval, llm, client, summary_channel_id, snapshot_limit=1000):
         self.llm = llm
@@ -148,9 +148,13 @@ class ChannelSummaryManager:
         channel_name = self.client.get_channel(channel_id).name
         if summary_channel:
             print(f"\n----- Channel Summary: {channel_name} -----\n{summary}\n----------------------------\n")
-            await summary_channel.send(f"\n----- Channel Summary: {channel_name} -----\n{summary}\n----------------------------\n")
+            # Split the summary into chunks of 2000 characters or less
+            chunks = [summary[i:i + 2000] for i in range(0, len(summary), 2000)]
+            for chunk in chunks:
+                await summary_channel.send(f"\n----- Channel Summary: {channel_name} -----\n{chunk}\n----------------------------\n")
         else:
             print("No summary channel found.")
+    
     def record_message(self, channel, result):
         self.channel_message_summaries[channel.id] = result
         print(f"Channel summary for {channel.id}: {result}")
@@ -170,6 +174,7 @@ class ChannelSummaryManager:
         summary = summary + "\nsupervizor: Create a summary of the conversation above, what is it about? What is your opininon about the conversation? How could you help them? Write a short summary about these people: " + people_in_chat + ". It is crutial to write about each and every one of them.\n"
 
         self.llm.add_request(summary, curry(self.record_message, channel))
+
 
 responder = DiscordLLMResponder(model, bot, client)
 
