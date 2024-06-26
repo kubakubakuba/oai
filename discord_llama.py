@@ -241,7 +241,7 @@ async def on_message(message):
         responder.add_discord_request(message, response_message, prompt)
         
         # Update the channel summary
-    
-    await summary_manager.update_channel_summary(message.channel)
+    if not message.channel.id == summary_channel_id: 
+        await summary_manager.update_channel_summary(message.channel)
 
 client.run(bot["discord_token"])
